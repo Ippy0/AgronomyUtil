@@ -1,0 +1,11 @@
+name: AgronomyUtils
+version: '${project.version}'
+main: com.ippy.agronomyutils.AgronomyUtils
+api-version: 1.19
+commands:
+  nightvision:
+    description: Night vision
+    aliases:
+      - nv
+  setbucket:
+    description:
