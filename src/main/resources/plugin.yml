@@ -9,3 +9,7 @@ commands:
       - nv
   setbucket:
     description:
+  autopickup:
+    description: Auto pickup toggle
+    aliases:
+      -ap

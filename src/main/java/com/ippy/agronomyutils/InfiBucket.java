@@ -1,8 +1,6 @@
 package com.ippy.agronomyutils;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
-import org.bukkit.Bukkit;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
@@ -12,51 +10,65 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.UUID;
 
 
 public class InfiBucket implements Listener, CommandExecutor {
 
     AgronomyUtils main;
-    NamespacedKey key;
+    NamespacedKey key,key2,inf,player;
+
     public InfiBucket(AgronomyUtils main) {
 
         this.main = main;
         key = new NamespacedKey(main,"uses");
-        loresList.add("");
+        key2 = new NamespacedKey(main, "finaluses");
+        inf = new NamespacedKey(main,"infinity");
+        player = new NamespacedKey(main,"MCUUID");
+
     }
-
-
-    List<String> loresList = new ArrayList<String>();
-
-
 
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
-        if(sender instanceof Player){
+        if(sender instanceof Player) {
+
             Player p = (Player) sender;
             ItemStack itemInHand = p.getItemInHand();
+            ItemMeta itemMeta = itemInHand.getItemMeta();
+            PersistentDataContainer container = itemMeta.getPersistentDataContainer();
 
-            if(itemInHand.getType() == Material.WATER_BUCKET){
+            if (p.hasPermission("agronomyutils.use")) {
 
-                ItemMeta itemMeta = itemInHand.getItemMeta();
-                itemMeta.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,Integer.parseInt(args[0]));
-                loresList.set(0,itemMeta.getPersistentDataContainer().get(key,PersistentDataType.INTEGER).toString());
-                itemMeta.setLore(loresList);
+                if (itemInHand.getType() == Material.WATER_BUCKET) {
+                    if(args[0].equals("infinity")){
+                        container.set(inf,PersistentDataType.INTEGER,1);
+                        itemMeta.setLore(Arrays.asList(CC.translate("&#38C50F&lInfinite &f&lUses")));
+                        itemInHand.setItemMeta(itemMeta);
+                    }
+                    else {
 
+                        int uses = Integer.parseInt(args[0]);
 
-                itemInHand.setItemMeta(itemMeta);
+                        container.set(key, PersistentDataType.INTEGER, uses);
+                        container.set(key2, PersistentDataType.INTEGER, uses);
+                        container.set(inf,PersistentDataType.INTEGER,0);
 
+                        String totalUses = Integer.toString(uses);
 
+                        itemMeta.setLore(Arrays.asList(CC.translate("&f&l" + totalUses + "&#38C50F&l/&f&l" + totalUses)));
 
+                        itemInHand.setItemMeta(itemMeta);
+                    }
+
+                }
             }
         }
         return false;
@@ -67,46 +79,61 @@ public class InfiBucket implements Listener, CommandExecutor {
 
         Player p = e.getPlayer();
 
-        ItemStack itemInHand = p.getItemInHand();
-        p.sendMessage(itemInHand.getType().toString());
+        ItemStack itemInHand = p.getInventory().getItem(e.getHand());
         ItemMeta itemMeta = itemInHand.getItemMeta();
+
         if (!itemInHand.hasItemMeta()) return;
+
         PersistentDataContainer container = itemMeta.getPersistentDataContainer();
 
-        if(!container.has(key,PersistentDataType.INTEGER))return;
+        if (!container.has(key, PersistentDataType.INTEGER)&&!container.has(inf,PersistentDataType.INTEGER)) return;
 
-        int uses = container.get(key,PersistentDataType.INTEGER);
-        p.sendMessage(Integer.toString(uses));
-        if(uses>0) {
-            uses--;
-            if (itemInHand.getType() == Material.WATER_BUCKET) {
+        if (!container.has(player,PersistentDataType.STRING)) {
 
-                Bukkit.getScheduler().runTaskLater(main, () -> {
+            UUID mcuuid = p.getUniqueId();
+            ItemStack bucket = p.getInventory().getItem(e.getHand());
+            ItemMeta sellRodMeta = bucket.getItemMeta();
+            PersistentDataContainer sellRodC = sellRodMeta.getPersistentDataContainer();
 
-                    p.getItemInHand().setType(Material.WATER_BUCKET);
+            sellRodC.set(player, PersistentDataType.STRING, mcuuid.toString());
+            bucket.setItemMeta(sellRodMeta);
+            p.setItemInHand(bucket);
+            e.setCancelled(true);
+        }
+        if(container.get(player,PersistentDataType.STRING).equals(p.getUniqueId().toString())) {
+            if (container.get(inf, PersistentDataType.INTEGER) == 1) {
+                ItemStack bucket = p.getItemInHand();
+                e.setItemStack(bucket);
 
-                }, 1);
-                itemInHand = p.getItemInHand();
-                p.sendMessage(itemInHand.getType().toString());
-                p.sendMessage(Integer.toString(uses));
-                itemMeta=itemInHand.getItemMeta();
-                itemMeta.getPersistentDataContainer().set(key,PersistentDataType.INTEGER,uses);
-                loresList.set(0,Integer.toString(uses));
-                itemMeta.setLore(loresList);
-                itemInHand.setItemMeta(itemMeta);
-            }
-            if (itemInHand.getType() == Material.LAVA_BUCKET) {
+            } else {
 
-                Bukkit.getScheduler().runTaskLater(main, () -> {
+                int uses = container.get(key, PersistentDataType.INTEGER);
+                int totalUses = container.get(key2, PersistentDataType.INTEGER);
 
-                    p.getItemInHand().setType(Material.LAVA_BUCKET);
+                if (uses > 0) {
 
-                }, 1);
+                    uses--;
+
+                    Material bucket = e.getBucket();
+                    ItemStack bucketIS = new ItemStack(bucket);
+                    ItemMeta bucketMeta = bucketIS.getItemMeta();
+                    PersistentDataContainer bucketContainer = bucketMeta.getPersistentDataContainer();
+
+                    bucketContainer.set(key, PersistentDataType.INTEGER, uses);
+                    bucketContainer.set(key2, PersistentDataType.INTEGER, totalUses);
+                    bucketContainer.set(player, PersistentDataType.STRING,p.getUniqueId().toString());
+                    bucketMeta.setLore(Arrays.asList(CC.translate("&f&l" + Integer.toString(uses) + "&#38C50F&l/&f&l" + Integer.toString(totalUses))));
+                    bucketIS.setItemMeta(bucketMeta);
+                    e.setItemStack(bucketIS);
+                }
             }
         }
+        else p.sendMessage(CC.translate("&c&lThis is not your bucket!"));
 
 
     }
 
-
 }
+
+
+
